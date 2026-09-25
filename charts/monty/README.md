@@ -136,6 +136,8 @@ Port-forwarding does not test TLS or NetworkPolicy.
 Choose either Ingress or Gateway API, not both. Routing always targets the server; the worker has no
 public route. Both options support multiple hostnames and existing TLS certificate Secrets.
 
+Load balancers may close WebSocket connections after a timeout (30 seconds by default on GKE); raise it through your Ingress controller or Gateway implementation to cover your longest sessions.
+
 For an Ingress, configure your installed controller:
 
 ```yaml
