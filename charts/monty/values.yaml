@@ -1,0 +1,108 @@
+# Use values.dev.yaml for local evaluation or customize values.prod.yaml for live deployments.
+# Both images use Chart.appVersion unless image.tag is explicitly overridden.
+image:
+  repository: us-docker.pkg.dev/pydantic-public-registries/monty
+  tag: ''
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# Session storage belongs only to the server. Unset URI means ephemeral sessions.
+# Like Logfire, the URI and string environment values support Helm templating.
+objectStore:
+  uri: null
+  # Prefer valueFrom.secretKeyRef for credentials; plain values enter Helm history.
+  env: {}
+  volumeMounts: []
+  volumes: []
+
+# Applied only to the server; never grant the worker access to session storage.
+serviceAccount:
+  create: false
+  name: ''
+  annotations: {}
+
+# Termination allows another 20s for drain replies (10s), slack (2s), and margin.
+drainGraceSeconds: 30
+
+# Choose Ingress or Gateway API. Neither option installs a controller.
+# Authentication: coming soon.
+ingress:
+  enabled: false
+  ingressClassName: ''
+  hostnames: []
+  tls: true
+  secretName: ''
+  # Configure WebSocket support for your controller here.
+  annotations: {}
+
+gateway:
+  enabled: false
+  create: true
+  gatewayClassName: ''
+  # Defaults to <release>-gateway when creating a Gateway.
+  name: ''
+  # For an existing Gateway only; defaults to the release namespace.
+  namespace: ''
+  sectionName: ''
+  hostnames: []
+  tls: true
+  tlsSecretName: ''
+  gatewayAnnotations: {}
+  # HTTPRoute annotations and filters.
+  annotations: {}
+  filters: []
+
+# Additional Kubernetes resources.
+# Values are rendered as YAML, without Helm template evaluation.
+extraObjects: []
+
+# Requires an enforcing CNI. Restricts ingress only; egress is unchanged.
+networkPolicy:
+  enabled: false
+  # Both selectors must match the data-plane pods. Empty selectors are rejected
+  # when enabled to avoid accidentally allowing every pod or namespace.
+  ingressController:
+    namespaceLabels: {}
+    podLabels: {}
+
+server:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: '1'
+      memory: 256Mi
+  # Values may be strings or valueFrom references. Quote numeric limits.
+  # Host, port, drain, worker URL and store URI are chart-owned.
+  env:
+    MONTY_SERVER_MAX_SESSIONS: '8'
+    MONTY_SERVER_MAX_SESSIONS_PER_CLIENT: '8'
+    # Optional Logfire tracing; omit for stderr logging only.
+    # LOGFIRE_TOKEN:
+    #   valueFrom:
+    #     secretKeyRef:
+    #       name: monty-logfire
+    #       key: token
+
+worker:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 128Mi
+    limits:
+      cpu: '1'
+      memory: 512Mi
+  # Four sessions leave room for the subprocess baseline and type-check headroom.
+  # Raising either limit below requires revisiting the container memory budget.
+  env:
+    MONTY_WORKER_MAX_SESSIONS: '4'
+    MONTY_WORKER_MAX_MEMORY_MIB: '32'
+    # Optional Logfire tracing; omit for stderr logging only.
+    # LOGFIRE_TOKEN:
+    #   valueFrom:
+    #     secretKeyRef:
+    #       name: monty-logfire
+    #       key: token

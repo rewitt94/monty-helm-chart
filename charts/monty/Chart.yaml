@@ -1,0 +1,8 @@
+apiVersion: v2
+name: monty
+description: Monty server and sandbox worker for Kubernetes.
+type: application
+version: 0.1.0
+# Pin the published Monty application version before releasing this chart.
+appVersion: ''
+kubeVersion: '>=1.26.0-0'

@@ -1,0 +1,46 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $namespaceLabels := .Values.networkPolicy.ingressController.namespaceLabels }}
+{{- $podLabels := .Values.networkPolicy.ingressController.podLabels }}
+{{- if not $namespaceLabels }}
+{{- fail "networkPolicy.ingressController.namespaceLabels must select the data-plane namespace" }}
+{{- end }}
+{{- if not $podLabels }}
+{{- fail "networkPolicy.ingressController.podLabels must select the data-plane pods" }}
+{{- end }}
+{{- range $component := list "server" "worker" }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "monty.fullname" $ }}-{{ $component }}
+  namespace: {{ $.Release.Namespace | quote }}
+  labels:
+    {{- include "monty.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "monty.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $component }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        {{- if eq $component "server" }}
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml $namespaceLabels | nindent 14 }}
+          podSelector:
+            matchLabels:
+              {{- toYaml $podLabels | nindent 14 }}
+        {{- else }}
+        - podSelector:
+            matchLabels:
+              {{- include "monty.selectorLabels" $ | nindent 14 }}
+              app.kubernetes.io/component: server
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: 8000
+{{- end }}
+{{- end }}

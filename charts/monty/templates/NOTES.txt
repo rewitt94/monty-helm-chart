@@ -1,0 +1,60 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }} -n {{ .Release.Namespace }}
+  $ helm get all {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+{{- if .Values.ingress.enabled }}
+You can access Monty at:
+{{- range .Values.ingress.hostnames }}
+  - {{ ternary "https" "http" $.Values.ingress.tls }}://{{ . }}
+{{- end }}
+{{- else if .Values.gateway.enabled }}
+{{- if .Values.gateway.create }}
+You can access Monty at:
+{{- range .Values.gateway.hostnames }}
+  - {{ ternary "https" "http" $.Values.gateway.tls }}://{{ . }}
+{{- end }}
+{{- else }}
+You can access Monty through the {{ .Values.gateway.name }} Gateway's {{ .Values.gateway.sectionName }} listener at these hostnames:
+{{- range .Values.gateway.hostnames }}
+  - {{ . }}
+{{- end }}
+TLS is configured on the existing Gateway.
+{{- end }}
+{{- else }}
+Monty is not exposed through an Ingress or Gateway. To access the application, you can:
+
+1. Port-forward the server service:
+   kubectl port-forward svc/{{ include "monty.fullname" . }}-server 8000:8000 -n {{ .Release.Namespace }}
+Then access:
+  - http://localhost:8000
+  - ws://localhost:8000/ (with a compatible Monty client)
+
+Or configure Ingress or Gateway API through the chart values.
+{{- end }}
+
+{{- if or .Values.ingress.enabled .Values.gateway.enabled }}
+Verify TLS before allowing clients.
+{{- end }}
+Authentication: coming soon.
+{{- if .Values.networkPolicy.enabled }}
+NetworkPolicies are enabled. Verify that your CNI enforces them and the data-plane selectors match.
+{{- else }}
+NetworkPolicies are disabled. Without external network controls, other pods can reach the worker.
+{{- end }}
+Never expose the worker directly to clients.
+{{- $storeUri := include "monty.objectStoreUri" . }}
+{{- if eq $storeUri "memory://" }}
+Sessions are stored in memory and are lost when the server restarts.
+{{- else if $storeUri }}
+Session storage is configured. Only the server should have write access to its store.
+Keep the store and prefix stable across upgrades; configure retention outside this chart.
+{{- else }}
+No object store is configured. Sessions are ephemeral and cannot be resumed after disconnect.
+{{- end }}
+
+For more information and documentation, visit: https://github.com/pydantic/monty-helm-chart#readme

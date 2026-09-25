@@ -1,0 +1,7 @@
+# Keep development and repository metadata out of the distributed chart.
+.git/
+.github/
+.gitignore
+.helmignore
+check.sh
+*.tgz

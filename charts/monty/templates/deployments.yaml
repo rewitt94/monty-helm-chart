@@ -1,0 +1,113 @@
+{{- range $component := list "server" "worker" }}
+{{- $config := index $.Values $component }}
+{{- $prefix := printf "MONTY_%s_" (upper $component) }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "monty.fullname" $ }}-{{ $component }}
+  labels:
+    {{- include "monty.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+spec:
+  replicas: {{ $config.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "monty.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $component }}
+  template:
+    metadata:
+      labels:
+        {{- include "monty.selectorLabels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $component }}
+    spec:
+      {{- if eq $component "server" }}
+      serviceAccountName: {{ include "monty.serviceAccountName" $ | quote }}
+      {{- end }}
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ add $.Values.drainGraceSeconds 20 }}
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        {{- if and (eq $component "server") $.Values.objectStore.volumes }}
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        {{- end }}
+        seccompProfile:
+          type: RuntimeDefault
+      {{- if eq $component "server" }}
+      {{- with $.Values.objectStore.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      containers:
+        - name: {{ $component }}
+          image: {{ printf "%s/monty-%s:%s" $.Values.image.repository $component (include "monty.imageTag" $) | quote }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: {{ $prefix }}HOST
+              value: '0.0.0.0'
+            - name: {{ $prefix }}PORT
+              value: '8000'
+            - name: {{ $prefix }}DRAIN_GRACE
+              value: {{ $.Values.drainGraceSeconds | quote }}
+            {{- if eq $component "server" }}
+            - name: MONTY_SERVER_WORKER_URL
+              value: {{ printf "ws://%s-worker:8000/" (include "monty.fullname" $) | quote }}
+            {{- include "monty.objectStoreEnv" $ | nindent 12 }}
+            {{- end }}
+            {{- range $name, $value := $config.env }}
+            - name: {{ $name }}
+              {{- if kindIs "map" $value }}
+              {{- toYaml $value | nindent 14 }}
+              {{- else }}
+              value: {{ $value | quote }}
+              {{- end }}
+            {{- end }}
+          {{- if eq $component "server" }}
+          {{- with $.Values.objectStore.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
+          {{- if eq $component "server" }}
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 12
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /robots.txt
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml $config.resources | nindent 12 }}
+{{- end }}

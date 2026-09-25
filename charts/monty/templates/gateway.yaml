@@ -1,0 +1,33 @@
+{{- if and .Values.gateway.enabled .Values.gateway.create }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ include "monty.gatewayName" . }}
+  labels:
+    {{- include "monty.labels" . | nindent 4 }}
+  {{- with .Values.gateway.gatewayAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  gatewayClassName: {{ .Values.gateway.gatewayClassName | quote }}
+  listeners:
+    {{- range $index, $host := .Values.gateway.hostnames }}
+    - name: {{ if $.Values.gateway.tls }}https{{ else }}http{{ end }}{{ if $index }}-{{ $index }}{{ end }}
+      hostname: {{ $host | quote }}
+      {{- if $.Values.gateway.tls }}
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: {{ $.Values.gateway.tlsSecretName | quote }}
+      {{- else }}
+      protocol: HTTP
+      port: 80
+      {{- end }}
+      allowedRoutes:
+        namespaces:
+          from: Same
+    {{- end }}
+{{- end }}

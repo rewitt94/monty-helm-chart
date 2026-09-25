@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["image", "imagePullSecrets", "objectStore", "serviceAccount", "drainGraceSeconds", "ingress", "gateway", "extraObjects", "networkPolicy", "server", "worker"],
+  "properties": {
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "tag", "pullPolicy"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1, "pattern": "^[^\\s]+[^/\\s]$"},
+        "tag": {
+          "description": "Shared image version override. Empty uses Chart.appVersion.",
+          "type": "string",
+          "pattern": "^$|^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$",
+          "not": {"const": "latest"}
+        },
+        "pullPolicy": {"type": "string", "enum": ["Always", "IfNotPresent", "Never"]}
+      }
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {"name": {"type": "string", "minLength": 1}}
+      }
+    },
+    "objectStore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["env", "volumeMounts", "volumes"],
+      "properties": {
+        "uri": {"type": ["string", "null"]},
+        "env": {
+          "type": "object",
+          "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+          "additionalProperties": {"$ref": "#/definitions/envValue"}
+        },
+        "volumeMounts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "mountPath"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "mountPath": {"type": "string", "pattern": "^/"},
+              "readOnly": {"type": "boolean"}
+            }
+          }
+        },
+        "volumes": {
+          "type": "array",
+          "items": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string", "minLength": 1}}}
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["create", "name", "annotations"],
+      "properties": {
+        "create": {"type": "boolean"},
+        "name": {"type": "string"},
+        "annotations": {"$ref": "#/definitions/annotations"}
+      }
+    },
+    "drainGraceSeconds": {"type": "integer", "minimum": 0},
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "ingressClassName", "hostnames", "tls", "secretName", "annotations"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "ingressClassName": {"type": "string"},
+        "hostnames": {"$ref": "#/definitions/hostnames"},
+        "tls": {"type": "boolean"},
+        "secretName": {"type": "string"},
+        "annotations": {"$ref": "#/definitions/annotations"}
+      }
+    },
+    "gateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "create", "gatewayClassName", "name", "namespace", "sectionName", "hostnames", "tls", "tlsSecretName", "gatewayAnnotations", "annotations", "filters"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "create": {"type": "boolean"},
+        "gatewayClassName": {"type": "string"},
+        "name": {"type": "string"},
+        "namespace": {"type": "string"},
+        "sectionName": {"type": "string"},
+        "hostnames": {"$ref": "#/definitions/hostnames"},
+        "tls": {"type": "boolean"},
+        "tlsSecretName": {"type": "string"},
+        "gatewayAnnotations": {"$ref": "#/definitions/annotations"},
+        "annotations": {"$ref": "#/definitions/annotations"},
+        "filters": {
+          "type": "array",
+          "items": {"type": "object", "required": ["type"], "properties": {"type": {"type": "string", "minLength": 1}}}
+        }
+      }
+    },
+    "extraObjects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["apiVersion", "kind", "metadata"],
+        "properties": {
+          "apiVersion": {"type": "string", "minLength": 1},
+          "kind": {"type": "string", "minLength": 1},
+          "metadata": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string", "minLength": 1}}}
+        }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "ingressController"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "ingressController": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["namespaceLabels", "podLabels"],
+          "properties": {
+            "namespaceLabels": {"$ref": "#/definitions/labels"},
+            "podLabels": {"$ref": "#/definitions/labels"}
+          }
+        }
+      }
+    },
+    "server": {"$ref": "#/definitions/component"},
+    "worker": {"$ref": "#/definitions/component"}
+  },
+  "definitions": {
+    "envValue": {
+      "oneOf": [
+        {"type": "string"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["value"],
+          "properties": {"value": {"type": "string"}}
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["valueFrom"],
+          "properties": {"valueFrom": {"type": "object", "minProperties": 1}}
+        }
+      ]
+    },
+    "hostnames": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "maxLength": 253, "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$"}
+    },
+    "annotations": {"type": "object", "additionalProperties": {"type": "string"}},
+    "labels": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["replicas", "resources", "env"],
+      "properties": {
+        "replicas": {"type": "integer", "minimum": 1},
+        "resources": {"type": "object"},
+        "env": {
+          "type": "object",
+          "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+          "additionalProperties": {"$ref": "#/definitions/envValue"}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{{- $storeUri := include "monty.objectStoreUri" . }}
+{{- if and $storeUri (not (regexMatch "^((s3|s3a|gs|az|abfs|abfss)://[^/[:space:]]+(/[^[:space:]]*)?|file:///[^[:space:]]+|memory://)$" $storeUri)) }}
+{{- fail "objectStore.uri must use s3://, gs://, az://, file:/// or memory:// (or a supported backend alias)" }}
+{{- end }}
+{{- if and (eq $storeUri "memory://") (gt (int .Values.server.replicas) 1) }}
+{{- fail "objectStore.uri memory:// requires server.replicas=1; use a shared store for multiple servers" }}
+{{- end }}
+{{- if and (hasPrefix "file://" $storeUri) (not .Values.objectStore.volumeMounts) }}
+{{- fail "objectStore.volumeMounts must provide a writable directory for a file:// store" }}
+{{- end }}
+{{- $managedEnv := list "MONTY_SERVER_HOST" "MONTY_SERVER_PORT" "MONTY_SERVER_DRAIN_GRACE" "MONTY_SERVER_WORKER_URL" "MONTY_SERVER_OBJECT_STORE_URI" "MONTY_WORKER_HOST" "MONTY_WORKER_PORT" "MONTY_WORKER_DRAIN_GRACE" }}
+{{- range $source, $env := dict "server" .Values.server.env "worker" .Values.worker.env "objectStore" .Values.objectStore.env }}
+{{- range $name, $_ := $env }}
+{{- if eq $name "MONTY_SERVER_DUMP_KEY" }}
+{{- fail "MONTY_SERVER_DUMP_KEY is no longer supported; configure objectStore instead" }}
+{{- end }}
+{{- if has $name $managedEnv }}
+{{- fail (printf "%s.env.%s is managed by the chart" $source $name) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- range $name, $_ := .Values.objectStore.env }}
+{{- if hasKey $.Values.server.env $name }}
+{{- fail (printf "%s must be set in only one of objectStore.env or server.env" $name) }}
+{{- end }}
+{{- end }}
+{{- if and .Values.ingress.enabled .Values.gateway.enabled }}
+{{- fail "enable only one of ingress.enabled or gateway.enabled" }}
+{{- end }}
+{{- if .Values.ingress.enabled }}
+{{- if not .Values.ingress.hostnames }}
+{{- fail "ingress.hostnames is required when ingress is enabled" }}
+{{- end }}
+{{- if and .Values.ingress.tls (not .Values.ingress.secretName) }}
+{{- fail "ingress.secretName is required when ingress.tls is enabled" }}
+{{- end }}
+{{- end }}
+{{- if .Values.gateway.enabled }}
+{{- if not .Values.gateway.hostnames }}
+{{- fail "gateway.hostnames is required when gateway is enabled" }}
+{{- end }}
+{{- if .Values.gateway.create }}
+{{- if not .Values.gateway.gatewayClassName }}
+{{- fail "gateway.gatewayClassName is required when gateway.create is true" }}
+{{- end }}
+{{- if .Values.gateway.namespace }}
+{{- fail "gateway.namespace is only supported for an existing Gateway" }}
+{{- end }}
+{{- if and .Values.gateway.tls (not .Values.gateway.tlsSecretName) }}
+{{- fail "gateway.tlsSecretName is required when creating a TLS Gateway" }}
+{{- end }}
+{{- if .Values.gateway.sectionName }}
+{{- fail "gateway.sectionName is only supported for an existing Gateway" }}
+{{- end }}
+{{- else }}
+{{- if not .Values.gateway.name }}
+{{- fail "gateway.name is required for an existing Gateway" }}
+{{- end }}
+{{- if not .Values.gateway.sectionName }}
+{{- fail "gateway.sectionName is required to select the existing Gateway listener" }}
+{{- end }}
+{{- end }}
+{{- end }}

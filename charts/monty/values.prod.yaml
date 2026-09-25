@@ -1,0 +1,76 @@
+# Production starter: copy to values.live.yaml and replace the placeholders.
+# Uses Chart.appVersion. No ingress/gateway controller is installed.
+# Authentication: coming soon.
+
+# REQUIRED: a shared bucket/prefix writable only by the server. Configure retention
+# with bucket lifecycle rules. Supported remote backends: s3://, gs://, az://.
+objectStore:
+  uri: s3://monty-sessions/production
+  # Supply backend settings and Secret references, or use workload identity below.
+  env: {}
+  # env:
+  #   AWS_REGION: us-east-1
+  #   AWS_ACCESS_KEY_ID:
+  #     valueFrom:
+  #       secretKeyRef:
+  #         name: monty-object-store
+  #         key: AWS_ACCESS_KEY_ID
+  #   AWS_SECRET_ACCESS_KEY:
+  #     valueFrom:
+  #       secretKeyRef:
+  #         name: monty-object-store
+  #         key: AWS_SECRET_ACCESS_KEY
+
+# Server-only identity. Configure cloud IAM outside this chart; do not give the
+# namespace's default service account or worker nodes access to session storage.
+serviceAccount:
+  create: true
+  annotations: {}
+
+# Image pull credentials supplied for self-hosted Full Monty.
+imagePullSecrets:
+  - name: monty-image-key
+
+ingress:
+  # Alternatively enable Ingress and disable Gateway API below.
+  enabled: false
+  # ingressClassName: REPLACE_WITH_INGRESS_CLASS
+  # hostnames: [monty.example.com]
+  # tls: true
+  # secretName: monty-tls
+  # annotations: {}
+
+gateway:
+  enabled: true
+  create: true
+  # REQUIRED: the GatewayClass provided by your controller.
+  gatewayClassName: ''
+  hostnames:
+    - monty.example.com
+  tls: true
+  # Provision and renew this TLS Secret in the release namespace.
+  tlsSecretName: monty-tls
+  # HTTPRoute settings for your Gateway implementation.
+  filters: []
+  annotations: {}
+
+# Additional Kubernetes resources.
+extraObjects: []
+
+networkPolicy:
+  enabled: true
+  ingressController:
+    # REQUIRED: labels identifying the namespace of your ingress/gateway data plane.
+    # Example: {kubernetes.io/metadata.name: gateway-system}
+    namespaceLabels: {}
+    # REQUIRED: labels selecting only the ingress/gateway data-plane pods.
+    # Use the labels from your controller installation, not the control-plane pods.
+    podLabels: {}
+
+# Multiple replicas alone do not guarantee availability or session continuity.
+# Resource and session limits inherit values.yaml; size them together for your load.
+server:
+  replicas: 2
+
+worker:
+  replicas: 2

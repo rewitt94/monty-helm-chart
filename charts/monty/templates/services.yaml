@@ -1,0 +1,19 @@
+{{- range $component := list "server" "worker" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "monty.fullname" $ }}-{{ $component }}
+  labels:
+    {{- include "monty.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "monty.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+{{- end }}

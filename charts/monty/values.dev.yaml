@@ -1,0 +1,14 @@
+# Local evaluation only. Use port-forwarding; do not expose this deployment publicly.
+# Uses Chart.appVersion; override image settings only for local builds.
+imagePullSecrets:
+  - name: monty-image-key
+
+# In-process session storage for a single server. Restarting it loses all sessions.
+objectStore:
+  uri: memory://
+
+server:
+  replicas: 1
+
+worker:
+  replicas: 1
