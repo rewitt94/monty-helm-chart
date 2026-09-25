@@ -597,7 +597,7 @@ leaves environment-specific routing and policy settings for you to complete.
 | `gateway.filters` | list | `[]` | HTTPRoute filters supported by your controller. |
 | `extraObjects` | list | `[]` | Additional Kubernetes manifests, rendered without Helm template evaluation. |
 | `networkPolicy.enabled` | bool | `false` | Restrict server and worker ingress. Requires an enforcing CNI. |
-| `networkPolicy.ingressFrom` | list | `[]` | NetworkPolicy peers (`namespaceSelector`, `podSelector`, `ipBlock`) allowed to reach the server. Required when policies are enabled; empty selectors and catch-all CIDRs are rejected. |
+| `networkPolicy.ingressFrom` | list | `[]` | NetworkPolicy peers (`namespaceSelector`, `podSelector`, `ipBlock`) allowed to reach the server. Required when policies are enabled. |
 | `server.replicas` | int | `1` | Server replica count, minimum 1. |
 | `server.resources.requests.cpu` | string | `"100m"` | Server CPU request. |
 | `server.resources.requests.memory` | string | `"64Mi"` | Server memory request. |

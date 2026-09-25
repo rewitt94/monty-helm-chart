@@ -60,8 +60,7 @@ extraObjects: []
 networkPolicy:
   enabled: false
   # NetworkPolicy peers allowed to reach the server on port 8000: the ingress/gateway
-  # data plane. Required when enabled. Empty selectors and catch-all CIDRs are
-  # rejected to avoid accidentally allowing every pod, namespace or address.
+  # data plane. Required when enabled.
   ingressFrom: []
 
 server:
