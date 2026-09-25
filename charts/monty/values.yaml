@@ -7,7 +7,7 @@ image:
 imagePullSecrets: []
 
 # Session storage belongs only to the server. Unset URI means ephemeral sessions.
-# Like Logfire, the URI and string environment values support Helm templating.
+# The URI and string environment values support Helm templating.
 objectStore:
   uri: null
   # Prefer valueFrom.secretKeyRef for credentials; plain values enter Helm history.

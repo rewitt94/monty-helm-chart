@@ -213,7 +213,7 @@ objectStore:
 Create the referenced Secret separately in the release namespace. `objectStore.env` accepts string
 values or Kubernetes `valueFrom` references. Prefer Secret references to credentials in values files;
 Helm stores supplied values in release history. The URI and string environment values support Helm
-templating, as in Logfire.
+templating.
 
 For credentials supplied as files, use `objectStore.volumes` and `objectStore.volumeMounts`. For example,
 a Google service-account key can be mounted read-only and selected with `GOOGLE_SERVICE_ACCOUNT`:
@@ -501,15 +501,13 @@ kind delete cluster --name monty
 With Helm installed, run from the repository root:
 
 ```zsh
-bash check.sh
+bash ci/check-chart.sh
 ```
 
 This lints and renders the base chart and both environment overlays, checks routing, network policies,
 server-only storage credentials and mounts, optional Logfire token references, `appVersion` fallback,
 and rejection of invalid inputs. It does not create a cluster or
 pull images; [Verify and Connect](#4-verify-and-connect) describes runtime checks.
-
-See [.github/README.md](https://github.com/pydantic/monty-helm-chart/blob/main/.github/README.md) for CI, private-image integration tests, and release setup.
 
 Before publishing a chart release, maintainers must pin `appVersion` in `charts/monty/Chart.yaml` to the published
 Monty application version. It is currently unset pending the first release; source builds can use

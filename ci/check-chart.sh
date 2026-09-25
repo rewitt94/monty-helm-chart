@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Validate the chart without a cluster or registry access.
 set -euo pipefail
-cd "$(dirname "$0")/charts/monty"
+cd "$(dirname "$0")/../charts/monty"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT

@@ -3,5 +3,4 @@
 .github/
 .gitignore
 .helmignore
-check.sh
 *.tgz
