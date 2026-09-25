@@ -59,8 +59,8 @@ extraObjects: []
 # Requires an enforcing CNI. Restricts ingress only; egress is unchanged.
 networkPolicy:
   enabled: false
-  # NetworkPolicy peers allowed to reach the server on port 8000: the ingress/gateway
-  # data plane. Required when enabled.
+  # NetworkPolicy peers allowed to reach the server on port 8000: the sources your
+  # ingress/gateway sends traffic from. Required when enabled.
   ingressFrom: []
 
 server:

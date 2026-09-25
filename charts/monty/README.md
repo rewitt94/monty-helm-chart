@@ -86,7 +86,7 @@ Before installing, confirm that you have:
 - Reviewed CPU, memory, and session limits for your workload; the starter inherits the base resource budgets.
 - Installed a suitable Ingress or Gateway controller (and Gateway API CRDs if using Gateway API).
 - Provisioned a TLS certificate Secret and DNS for your public hostname.
-- Enabled NetworkPolicy enforcement in your CNI and set `networkPolicy.ingressFrom` to your ingress/gateway data plane.
+- Enabled NetworkPolicy enforcement in your CNI and set `networkPolicy.ingressFrom` to the sources your ingress/gateway sends traffic from.
 - Reviewed [Production Considerations](#production-considerations), including availability and worker isolation.
 
 Install with your customized values file:
@@ -521,7 +521,7 @@ kubectl -n monty logs deployment/monty-worker
 | Pods remain `Pending` or are `OOMKilled` | Check cluster capacity, pod events, and resource budgets alongside session limits. |
 | Server exits at startup | Check object-store credentials, write permissions, endpoint access, and the startup write-probe error in the server logs. |
 | Session IDs cannot resume | Check the shared store/prefix, lifecycle expiry, interpreter compatibility, and whether an in-memory store was restarted. |
-| Gateway or Ingress does not serve requests | Check controller events, Gateway/HTTPRoute acceptance, DNS, the TLS Secret, and that `networkPolicy.ingressFrom` matches the data plane. |
+| Gateway or Ingress does not serve requests | Check controller events, Gateway/HTTPRoute acceptance, DNS, the TLS Secret, and that `networkPolicy.ingressFrom` allows the sources your ingress/gateway sends traffic from. |
 
 For chart issues, [open a GitHub issue](https://github.com/pydantic/monty-helm-chart/issues) with the chart
 version, `appVersion` (and any image override), Kubernetes version, sanitized values, and relevant logs. Do not include keys or credentials.
