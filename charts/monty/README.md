@@ -391,9 +391,6 @@ This chart targets the session-storage service API. When upgrading from the earl
 model, remove `dumpKey` and `existingSecret` from your values and configure `objectStore` instead.
 Previously exported signed dumps are not accepted as session IDs.
 
-`networkPolicy.ingressController` is replaced by `networkPolicy.ingressFrom`; move its labels into one
-entry's `namespaceSelector` and `podSelector`.
-
 ### Production Considerations
 
 The production overlay configures routing, TLS references, and network isolation, but still needs
