@@ -136,7 +136,7 @@ Port-forwarding does not test TLS or NetworkPolicy.
 Choose either Ingress or Gateway API, not both. Routing always targets the server; the worker has no
 public route. Both options support multiple hostnames and existing TLS certificate Secrets.
 
-Load balancers may close WebSocket connections after a timeout (30 seconds by default on GKE); raise it through your Ingress controller or Gateway implementation to cover your longest sessions. When a server pod terminates, the load balancer must keep its WebSocket connections open for at least `drainGraceSeconds` (connection draining, disabled by default on GKE); otherwise clients miss the server's shutdown message and cannot automatically resume.
+Load balancers may close WebSocket connections after a timeout (30 seconds by default on GKE); raise it through your Ingress controller or Gateway implementation to cover your longest sessions. When a server pod terminates, the load balancer must keep its WebSocket connections open for at least `drainGraceSeconds` (connection draining, disabled by default on GKE) so the server can drain them.
 
 For an Ingress, configure your installed controller:
 
