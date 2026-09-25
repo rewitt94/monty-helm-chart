@@ -1,8 +1,10 @@
 {{- if .Values.networkPolicy.enabled }}
 {{- $ingressFrom := .Values.networkPolicy.ingressFrom }}
+{{- /* An empty from list would allow all sources. */}}
 {{- if not $ingressFrom }}
 {{- fail "networkPolicy.ingressFrom must list the ingress/gateway sources allowed to reach the server" }}
 {{- end }}
+{{- /* Reject peers that match everything: empty selectors, 0.0.0.0/0 and ::/0. */}}
 {{- range $index, $peer := $ingressFrom }}
 {{- range $key := list "namespaceSelector" "podSelector" }}
 {{- $selector := get $peer $key }}
@@ -35,6 +37,7 @@ spec:
     - Ingress
   ingress:
     - from:
+        {{- /* Server: configured ingress/gateway sources. Worker: this release's servers only. */}}
         {{- if eq $component "server" }}
         {{- toYaml $ingressFrom | nindent 8 }}
         {{- else }}

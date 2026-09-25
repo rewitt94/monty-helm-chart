@@ -172,49 +172,25 @@ Coming soon.
 
 `networkPolicy.enabled` creates ingress policies for both components:
 
-- The server accepts TCP port 8000 only from the sources in `networkPolicy.ingressFrom`.
-- The worker accepts TCP port 8000 only from server pods of the same release in the same namespace.
-
-`networkPolicy.ingressFrom` is a list of standard NetworkPolicy peers (`namespaceSelector`,
-`podSelector`, or `ipBlock`) identifying your ingress/gateway **data plane**, not just the controller's
-control plane. For an in-cluster controller, select its pods:
+- The server accepts TCP port 8000 only from `networkPolicy.ingressFrom`, a list of NetworkPolicy peers.
+- The worker accepts TCP port 8000 only from server pods of the same release.
 
 ```yaml
 networkPolicy:
   enabled: true
   ingressFrom:
+    # In-cluster controller pods; in one entry, both selectors must match.
     - namespaceSelector:
         matchLabels: {kubernetes.io/metadata.name: ingress-nginx}
       podSelector:
         matchLabels: {app.kubernetes.io/name: ingress-nginx}
-```
-
-Keep a `namespaceSelector` and `podSelector` in the **same** entry so that both must match. As
-separate entries, either one alone is allowed, which is much broader.
-
-Cloud load balancers that send traffic directly to pod IPs, such as GKE Gateway with container-native
-load balancing, have no data-plane pods to select. Allow their source ranges with `ipBlock` instead:
-
-```yaml
-networkPolicy:
-  enabled: true
-  ingressFrom:
+    # Or load balancer ranges, e.g. GKE Gateway; check your provider's docs.
     - ipBlock: {cidr: 35.191.0.0/16}
     - ipBlock: {cidr: 130.211.0.0/22}
 ```
 
-These are Google Cloud's documented load balancer health-check ranges; confirm the full set of
-source ranges for your load balancer type in your provider's documentation.
-
-An empty list, empty selectors, and `0.0.0.0/0` or `::/0` are rejected. A CNI that enforces
-NetworkPolicy is essential; creating policies on an unsupported CNI provides no isolation. Other
-policies are additive and can broaden access. These policies do not restrict egress or provide
-in-cluster TLS.
-
-If your load balancer's sources cannot be expressed as peers, manage equivalent policies using your
-provider's networking controls and disable the chart's policies. Do not allow arbitrary pods or namespaces
-to reach either service. Kubernetes API/port-forward access and permission to create or relabel workloads
-must remain restricted to trusted operators.
+Policies require an enforcing CNI, are additive, and do not restrict egress. Restrict Kubernetes API,
+port-forward, and workload relabelling access to trusted operators.
 
 ### Object Storage
 
@@ -415,17 +391,8 @@ This chart targets the session-storage service API. When upgrading from the earl
 model, remove `dumpKey` and `existingSecret` from your values and configure `objectStore` instead.
 Previously exported signed dumps are not accepted as session IDs.
 
-`networkPolicy.ingressController.namespaceLabels` and `podLabels` have been replaced by
-`networkPolicy.ingressFrom`. Move them into a single entry to keep the same policy:
-
-```yaml
-networkPolicy:
-  ingressFrom:
-    - namespaceSelector:
-        matchLabels: <your former namespaceLabels>
-      podSelector:
-        matchLabels: <your former podLabels>
-```
+`networkPolicy.ingressController` is replaced by `networkPolicy.ingressFrom`; move its labels into one
+entry's `namespaceSelector` and `podSelector`.
 
 ### Production Considerations
 
