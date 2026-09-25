@@ -59,11 +59,10 @@ extraObjects: []
 # Requires an enforcing CNI. Restricts ingress only; egress is unchanged.
 networkPolicy:
   enabled: false
-  # Both selectors must match the data-plane pods. Empty selectors are rejected
-  # when enabled to avoid accidentally allowing every pod or namespace.
-  ingressController:
-    namespaceLabels: {}
-    podLabels: {}
+  # NetworkPolicy peers allowed to reach the server on port 8000: the ingress/gateway
+  # data plane. Required when enabled. Empty selectors and catch-all CIDRs are
+  # rejected to avoid accidentally allowing every pod, namespace or address.
+  ingressFrom: []
 
 server:
   replicas: 1

@@ -86,7 +86,7 @@ Before installing, confirm that you have:
 - Reviewed CPU, memory, and session limits for your workload; the starter inherits the base resource budgets.
 - Installed a suitable Ingress or Gateway controller (and Gateway API CRDs if using Gateway API).
 - Provisioned a TLS certificate Secret and DNS for your public hostname.
-- Enabled NetworkPolicy enforcement in your CNI and selected the correct ingress/gateway data-plane pods.
+- Enabled NetworkPolicy enforcement in your CNI and set `networkPolicy.ingressFrom` to your ingress/gateway data plane.
 - Reviewed [Production Considerations](#production-considerations), including availability and worker isolation.
 
 Install with your customized values file:
@@ -172,16 +172,46 @@ Coming soon.
 
 `networkPolicy.enabled` creates ingress policies for both components:
 
-- The server accepts TCP port 8000 only from pods matching **both**
-  `networkPolicy.ingressController.namespaceLabels` and `podLabels`.
+- The server accepts TCP port 8000 only from the sources in `networkPolicy.ingressFrom`.
 - The worker accepts TCP port 8000 only from server pods of the same release in the same namespace.
 
-Set these selectors to the actual ingress/gateway **data-plane** pods, not just the controller's
-control plane. Empty selectors are rejected. A CNI that enforces NetworkPolicy is essential; creating
-policies on an unsupported CNI provides no isolation. Other policies are additive and can broaden access.
-These policies do not restrict egress or provide in-cluster TLS.
+`networkPolicy.ingressFrom` is a list of standard NetworkPolicy peers (`namespaceSelector`,
+`podSelector`, or `ipBlock`) identifying your ingress/gateway **data plane**, not just the controller's
+control plane. For an in-cluster controller, select its pods:
 
-For managed gateways without selectable data-plane pods, manage equivalent policies using your
+```yaml
+networkPolicy:
+  enabled: true
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels: {kubernetes.io/metadata.name: ingress-nginx}
+      podSelector:
+        matchLabels: {app.kubernetes.io/name: ingress-nginx}
+```
+
+Keep a `namespaceSelector` and `podSelector` in the **same** entry so that both must match. As
+separate entries, either one alone is allowed, which is much broader.
+
+Cloud load balancers that send traffic directly to pod IPs, such as GKE Gateway with container-native
+load balancing, have no data-plane pods to select. Allow their source ranges with `ipBlock` instead:
+
+```yaml
+networkPolicy:
+  enabled: true
+  ingressFrom:
+    - ipBlock: {cidr: 35.191.0.0/16}
+    - ipBlock: {cidr: 130.211.0.0/22}
+```
+
+These are Google Cloud's documented load balancer health-check ranges; confirm the full set of
+source ranges for your load balancer type in your provider's documentation.
+
+An empty list, empty selectors, and `0.0.0.0/0` or `::/0` are rejected. A CNI that enforces
+NetworkPolicy is essential; creating policies on an unsupported CNI provides no isolation. Other
+policies are additive and can broaden access. These policies do not restrict egress or provide
+in-cluster TLS.
+
+If your load balancer's sources cannot be expressed as peers, manage equivalent policies using your
 provider's networking controls and disable the chart's policies. Do not allow arbitrary pods or namespaces
 to reach either service. Kubernetes API/port-forward access and permission to create or relabel workloads
 must remain restricted to trusted operators.
@@ -385,6 +415,18 @@ This chart targets the session-storage service API. When upgrading from the earl
 model, remove `dumpKey` and `existingSecret` from your values and configure `objectStore` instead.
 Previously exported signed dumps are not accepted as session IDs.
 
+`networkPolicy.ingressController.namespaceLabels` and `podLabels` have been replaced by
+`networkPolicy.ingressFrom`. Move them into a single entry to keep the same policy:
+
+```yaml
+networkPolicy:
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels: <your former namespaceLabels>
+      podSelector:
+        matchLabels: <your former podLabels>
+```
+
 ### Production Considerations
 
 The production overlay configures routing, TLS references, and network isolation, but still needs
@@ -479,7 +521,7 @@ kubectl -n monty logs deployment/monty-worker
 | Pods remain `Pending` or are `OOMKilled` | Check cluster capacity, pod events, and resource budgets alongside session limits. |
 | Server exits at startup | Check object-store credentials, write permissions, endpoint access, and the startup write-probe error in the server logs. |
 | Session IDs cannot resume | Check the shared store/prefix, lifecycle expiry, interpreter compatibility, and whether an in-memory store was restarted. |
-| Gateway or Ingress does not serve requests | Check controller events, Gateway/HTTPRoute acceptance, DNS, the TLS Secret, and NetworkPolicy data-plane selectors. |
+| Gateway or Ingress does not serve requests | Check controller events, Gateway/HTTPRoute acceptance, DNS, the TLS Secret, and that `networkPolicy.ingressFrom` matches the data plane. |
 
 For chart issues, [open a GitHub issue](https://github.com/pydantic/monty-helm-chart/issues) with the chart
 version, `appVersion` (and any image override), Kubernetes version, sanitized values, and relevant logs. Do not include keys or credentials.
@@ -555,8 +597,7 @@ leaves environment-specific routing and policy settings for you to complete.
 | `gateway.filters` | list | `[]` | HTTPRoute filters supported by your controller. |
 | `extraObjects` | list | `[]` | Additional Kubernetes manifests, rendered without Helm template evaluation. |
 | `networkPolicy.enabled` | bool | `false` | Restrict server and worker ingress. Requires an enforcing CNI. |
-| `networkPolicy.ingressController.namespaceLabels` | object | `{}` | Labels selecting the data-plane namespace. Required and nonempty when policies are enabled. |
-| `networkPolicy.ingressController.podLabels` | object | `{}` | Labels selecting data-plane pods within that namespace. Required and nonempty when policies are enabled. |
+| `networkPolicy.ingressFrom` | list | `[]` | NetworkPolicy peers (`namespaceSelector`, `podSelector`, `ipBlock`) allowed to reach the server. Required when policies are enabled; empty selectors and catch-all CIDRs are rejected. |
 | `server.replicas` | int | `1` | Server replica count, minimum 1. |
 | `server.resources.requests.cpu` | string | `"100m"` | Server CPU request. |
 | `server.resources.requests.memory` | string | `"64Mi"` | Server memory request. |

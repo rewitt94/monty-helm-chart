@@ -1,11 +1,20 @@
 {{- if .Values.networkPolicy.enabled }}
-{{- $namespaceLabels := .Values.networkPolicy.ingressController.namespaceLabels }}
-{{- $podLabels := .Values.networkPolicy.ingressController.podLabels }}
-{{- if not $namespaceLabels }}
-{{- fail "networkPolicy.ingressController.namespaceLabels must select the data-plane namespace" }}
+{{- $ingressFrom := .Values.networkPolicy.ingressFrom }}
+{{- if not $ingressFrom }}
+{{- fail "networkPolicy.ingressFrom must list the ingress/gateway sources allowed to reach the server" }}
 {{- end }}
-{{- if not $podLabels }}
-{{- fail "networkPolicy.ingressController.podLabels must select the data-plane pods" }}
+{{- range $index, $peer := $ingressFrom }}
+{{- range $key := list "namespaceSelector" "podSelector" }}
+{{- $selector := get $peer $key }}
+{{- if and (hasKey $peer $key) (not (or $selector.matchLabels $selector.matchExpressions)) }}
+{{- fail (printf "networkPolicy.ingressFrom[%d].%s must not be empty; an empty selector matches everything" $index $key) }}
+{{- end }}
+{{- end }}
+{{- with $peer.ipBlock }}
+{{- if has .cidr (list "0.0.0.0/0" "::/0") }}
+{{- fail (printf "networkPolicy.ingressFrom[%d].ipBlock.cidr must not allow every address" $index) }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- range $component := list "server" "worker" }}
 ---
@@ -27,12 +36,7 @@ spec:
   ingress:
     - from:
         {{- if eq $component "server" }}
-        - namespaceSelector:
-            matchLabels:
-              {{- toYaml $namespaceLabels | nindent 14 }}
-          podSelector:
-            matchLabels:
-              {{- toYaml $podLabels | nindent 14 }}
+        {{- toYaml $ingressFrom | nindent 8 }}
         {{- else }}
         - podSelector:
             matchLabels:

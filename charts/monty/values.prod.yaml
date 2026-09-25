@@ -59,13 +59,26 @@ extraObjects: []
 
 networkPolicy:
   enabled: true
-  ingressController:
-    # REQUIRED: labels identifying the namespace of your ingress/gateway data plane.
-    # Example: {kubernetes.io/metadata.name: gateway-system}
-    namespaceLabels: {}
-    # REQUIRED: labels selecting only the ingress/gateway data-plane pods.
-    # Use the labels from your controller installation, not the control-plane pods.
-    podLabels: {}
+  # REQUIRED: the sources of your ingress/gateway data plane, as NetworkPolicy peers.
+  # Select the data-plane pods, not the controller's control plane. Keep a
+  # namespaceSelector and podSelector in the same entry: both must then match.
+  # As separate entries, either one alone would be allowed.
+  ingressFrom: []
+  # ingress-nginx:
+  # - namespaceSelector:
+  #     matchLabels: {kubernetes.io/metadata.name: ingress-nginx}
+  #   podSelector:
+  #     matchLabels: {app.kubernetes.io/name: ingress-nginx}
+  # Gateway API, e.g. the Envoy Gateway data plane:
+  # - namespaceSelector:
+  #     matchLabels: {kubernetes.io/metadata.name: envoy-gateway-system}
+  #   podSelector:
+  #     matchLabels: {app.kubernetes.io/managed-by: envoy-gateway}
+  # Cloud load balancers that send traffic directly to pod IPs (e.g. GKE Gateway
+  # with NEGs) have no data-plane pods; allow their source ranges instead.
+  # Check your provider's documentation for the ranges your load balancer uses.
+  # - ipBlock: {cidr: 35.191.0.0/16}
+  # - ipBlock: {cidr: 130.211.0.0/22}
 
 # Multiple replicas alone do not guarantee availability or session continuity.
 # Resource and session limits inherit values.yaml; size them together for your load.

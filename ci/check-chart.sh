@@ -17,8 +17,7 @@ fi
 prod_args=(
   -f values.prod.yaml --set-string image.tag=test-build
   --set gateway.gatewayClassName=test-gateway
-  --set-string 'networkPolicy.ingressController.namespaceLabels.kubernetes\.io/metadata\.name=gateway-system'
-  --set-string 'networkPolicy.ingressController.podLabels.app=proxy'
+  --set-json 'networkPolicy.ingressFrom=[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"gateway-system"}},"podSelector":{"matchLabels":{"app":"proxy"}}}]'
 )
 helm lint --strict "$chart" -f values.dev.yaml --set-string image.tag=test-build
 helm template monty "$chart" --namespace monty \
@@ -239,6 +238,23 @@ for expected in "$expected_server" "$expected_worker"; do
   fi
 done
 
+# Managed load balancers without data-plane pods are allowed by source range.
+helm template monty "$chart" --namespace monty "${prod_args[@]}" \
+  --set-json 'networkPolicy.ingressFrom=[{"ipBlock":{"cidr":"35.191.0.0/16"}},{"ipBlock":{"cidr":"130.211.0.0/22"}}]' \
+  --show-only templates/networkpolicies.yaml > "$tmp/policy-ipblock.yaml"
+expected_ipblock='    - from:
+        - ipBlock:
+            cidr: 35.191.0.0/16
+        - ipBlock:
+            cidr: 130.211.0.0/22
+      ports:
+        - protocol: TCP
+          port: 8000'
+if [[ $(< "$tmp/policy-ipblock.yaml") != *"$expected_ipblock"* ]]; then
+  echo 'NetworkPolicy ipBlock rules did not match' >&2
+  exit 1
+fi
+
 # Confirm invalid inputs fail for the intended reason, not an unrelated error.
 expect_failure() {
   local expected=$1
@@ -273,10 +289,21 @@ expect_failure 'gateway.tlsSecretName' "${prod_args[@]}" --set-string gateway.tl
 expect_failure 'gateway.name' "${prod_args[@]}" --set gateway.create=false
 expect_failure 'gateway.sectionName' "${prod_args[@]}" --set gateway.create=false --set gateway.name=shared
 expect_failure 'only one' "${prod_args[@]}" --set ingress.enabled=true
-expect_failure 'namespaceLabels' -f values.prod.yaml --set-string image.tag=test-build \
-  --set gateway.gatewayClassName=test-gateway --set networkPolicy.ingressController.podLabels.app=proxy
-expect_failure 'podLabels' -f values.prod.yaml --set-string image.tag=test-build \
-  --set gateway.gatewayClassName=test-gateway --set networkPolicy.ingressController.namespaceLabels.name=gateway-system
+expect_failure 'networkPolicy.ingressFrom must list' -f values.prod.yaml --set-string image.tag=test-build \
+  --set gateway.gatewayClassName=test-gateway
+expect_failure 'ingressFrom' "${prod_args[@]}" --set-json 'networkPolicy.ingressFrom=[{}]'
+expect_failure 'ingressFrom[0].namespaceSelector must not be empty' "${prod_args[@]}" \
+  --set-json 'networkPolicy.ingressFrom=[{"namespaceSelector":{}}]'
+expect_failure 'ingressFrom[1].podSelector must not be empty' "${prod_args[@]}" \
+  --set-json 'networkPolicy.ingressFrom=[{"ipBlock":{"cidr":"10.0.0.0/8"}},{"podSelector":{"matchLabels":{}}}]'
+for cidr in 0.0.0.0/0 ::/0; do
+  expect_failure 'must not allow every address' "${prod_args[@]}" \
+    --set-json "networkPolicy.ingressFrom=[{\"ipBlock\":{\"cidr\":\"$cidr\"}}]"
+done
+expect_failure 'ingressFrom' "${prod_args[@]}" \
+  --set-json 'networkPolicy.ingressFrom=[{"ipBlock":{"cidr":"10.0.0.0/8"},"podSelector":{"matchLabels":{"app":"proxy"}}}]'
+expect_failure 'ingressController' "${prod_args[@]}" \
+  --set networkPolicy.ingressController.podLabels.app=proxy
 expect_failure 'ingress.hostnames' "${prod_args[@]}" --set gateway.enabled=false --set ingress.enabled=true
 expect_failure 'ingress.secretName' "${prod_args[@]}" --set gateway.enabled=false \
   --set ingress.enabled=true --set 'ingress.hostnames[0]=monty.example.com'

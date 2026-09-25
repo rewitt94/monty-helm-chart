@@ -118,17 +118,12 @@
     "networkPolicy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "ingressController"],
+      "required": ["enabled", "ingressFrom"],
       "properties": {
         "enabled": {"type": "boolean"},
-        "ingressController": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["namespaceLabels", "podLabels"],
-          "properties": {
-            "namespaceLabels": {"$ref": "#/definitions/labels"},
-            "podLabels": {"$ref": "#/definitions/labels"}
-          }
+        "ingressFrom": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/networkPolicyPeer"}
         }
       }
     },
@@ -162,6 +157,55 @@
     "labels": {
       "type": "object",
       "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "networkPolicyPeer": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ipBlock"],
+          "properties": {
+            "ipBlock": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["cidr"],
+              "properties": {
+                "cidr": {"type": "string", "minLength": 1},
+                "except": {"type": "array", "items": {"type": "string", "minLength": 1}}
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "namespaceSelector": {"$ref": "#/definitions/labelSelector"},
+            "podSelector": {"$ref": "#/definitions/labelSelector"}
+          }
+        }
+      ]
+    },
+    "labelSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "matchLabels": {"$ref": "#/definitions/labels"},
+        "matchExpressions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "operator"],
+            "properties": {
+              "key": {"type": "string", "minLength": 1},
+              "operator": {"type": "string", "enum": ["In", "NotIn", "Exists", "DoesNotExist"]},
+              "values": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      }
     },
     "component": {
       "type": "object",

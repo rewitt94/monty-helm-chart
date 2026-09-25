@@ -42,7 +42,7 @@ Verify TLS before allowing clients.
 {{- end }}
 Authentication: coming soon.
 {{- if .Values.networkPolicy.enabled }}
-NetworkPolicies are enabled. Verify that your CNI enforces them and the data-plane selectors match.
+NetworkPolicies are enabled. Verify that your CNI enforces them and networkPolicy.ingressFrom matches your data plane.
 {{- else }}
 NetworkPolicies are disabled. Without external network controls, other pods can reach the worker.
 {{- end }}
